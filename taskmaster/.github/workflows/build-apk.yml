@@ -20,14 +20,15 @@ jobs:
           flutter-version: '3.38.7'
 
       - name: Install dependencies
+        working-directory: taskmaster
         run: flutter pub get
 
       - name: Build APK
+        working-directory: taskmaster
         run: flutter build apk --release
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: taskmaster-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
-
+          path: taskmaster/build/app/outputs/flutter-apk/app-release.apk
