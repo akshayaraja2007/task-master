@@ -2,8 +2,7 @@ name: Build Flutter APK
 
 on:
   push:
-    branches:
-      - main
+    branches: [ "main" ]
   workflow_dispatch:
 
 jobs:
@@ -18,17 +17,21 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.38.7'
+          channel: stable
 
       - name: Install dependencies
-        working-directory: taskmaster
-        run: flutter pub get
+        run: |
+          cd taskmaster
+          flutter pub get
 
       - name: Build APK
-        working-directory: taskmaster
-        run: flutter build apk --release
+        run: |
+          cd taskmaster
+          flutter build apk --release
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: taskmaster-apk
           path: taskmaster/build/app/outputs/flutter-apk/app-release.apk
+
