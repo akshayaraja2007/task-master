@@ -9,13 +9,15 @@ class NotificationService {
   static Future<void> init() async {
     tzdata.initializeTimeZones();
 
-    const AndroidInitializationSettings androidInit =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
-
-    const InitializationSettings initSettings =
-        InitializationSettings(android: androidInit);
+    const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const initSettings = InitializationSettings(android: androidInit);
 
     await _plugin.initialize(initSettings);
+
+    await _plugin
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>()
+        ?.requestPermission();
   }
 
   static Future<void> schedule(

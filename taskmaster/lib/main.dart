@@ -26,7 +26,15 @@ class TaskMasterApp extends StatelessWidget {
     return MaterialApp(
       title: 'TaskMaster',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(useMaterial3: true),
+      themeMode: ThemeMode.system,
+      theme: ThemeData(
+        useMaterial3: true,
+        brightness: Brightness.light,
+      ),
+      darkTheme: ThemeData(
+        useMaterial3: true,
+        brightness: Brightness.dark,
+      ),
       home: const HomeScreen(),
     );
   }

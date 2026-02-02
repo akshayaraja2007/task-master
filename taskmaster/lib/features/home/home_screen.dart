@@ -56,14 +56,6 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {});
   }
 
-  void _moveBackward(Task task) {
-    if (task.status == TaskStatus.doing) {
-      task.status = TaskStatus.todo;
-      task.save();
-    }
-    setState(() {});
-  }
-
   void _deleteTask(Task task) {
     NotificationService.cancel(task.id.hashCode);
     task.delete();
@@ -77,19 +69,15 @@ class _HomeScreenState extends State<HomeScreen> {
         title: Text("TaskMaster - ${_titles[_currentIndex]}"),
         centerTitle: true,
       ),
-
       body: PageView(
         controller: _pageController,
-        onPageChanged: (i) {
-          setState(() => _currentIndex = i);
-        },
+        onPageChanged: (i) => setState(() => _currentIndex = i),
         children: [
           _buildPage(TaskStatus.todo),
           _buildPage(TaskStatus.doing),
           _buildPage(TaskStatus.done),
         ],
       ),
-
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: (i) {
@@ -97,21 +85,11 @@ class _HomeScreenState extends State<HomeScreen> {
           setState(() => _currentIndex = i);
         },
         items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.list_alt),
-            label: "Todo",
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.play_arrow),
-            label: "Doing",
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.check_circle),
-            label: "Done",
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.list), label: "Todo"),
+          BottomNavigationBarItem(icon: Icon(Icons.play_arrow), label: "Doing"),
+          BottomNavigationBarItem(icon: Icon(Icons.check), label: "Done"),
         ],
       ),
-
       floatingActionButton: FloatingActionButton(
         child: const Icon(Icons.add),
         onPressed: () async {
@@ -119,13 +97,8 @@ class _HomeScreenState extends State<HomeScreen> {
             context,
             MaterialPageRoute(builder: (_) => const AddTaskScreen()),
           );
-
           if (result != null) {
-            _addTask(
-              result['title'],
-              result['time'],
-              result['remind'],
-            );
+            _addTask(result['title'], result['time'], result['remind']);
           }
         },
       ),
@@ -171,11 +144,7 @@ class _HomeScreenState extends State<HomeScreen> {
             if (direction == DismissDirection.startToEnd) {
               _moveForward(task);
             } else {
-              if (task.status == TaskStatus.todo) {
-                _deleteTask(task);
-              } else {
-                _moveBackward(task);
-              }
+              _deleteTask(task);
             }
           },
           child: Card(
@@ -185,10 +154,8 @@ class _HomeScreenState extends State<HomeScreen> {
               borderRadius: BorderRadius.circular(16),
             ),
             child: ListTile(
-              title: Text(
-                task.title,
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
+              title: Text(task.title,
+                  style: const TextStyle(fontWeight: FontWeight.bold)),
               subtitle: Text(
                 "${task.dateTime.day}/${task.dateTime.month}/${task.dateTime.year} "
                 "${task.dateTime.hour.toString().padLeft(2, '0')}:"
