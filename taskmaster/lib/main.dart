@@ -5,16 +5,28 @@ import 'features/tasks/task_model.dart';
 import 'features/home/home_screen.dart';
 import 'services/notification_service.dart';
 
-void main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // ---------- Hive init ----------
   await Hive.initFlutter();
-  Hive.registerAdapter(TaskAdapter());
-  Hive.registerAdapter(TaskStatusAdapter());
+
+  // Register adapters safely (prevents duplicate crash)
+  if (!Hive.isAdapterRegistered(0)) {
+    Hive.registerAdapter(TaskAdapter());
+  }
+
+  if (!Hive.isAdapterRegistered(1)) {
+    Hive.registerAdapter(TaskStatusAdapter());
+  }
+
+  // Open storage box
   await Hive.openBox<Task>('tasks');
 
+  // ---------- Notifications ----------
   await NotificationService.init();
 
+  // ---------- Run app ----------
   runApp(const TaskMasterApp());
 }
 
@@ -26,15 +38,19 @@ class TaskMasterApp extends StatelessWidget {
     return MaterialApp(
       title: 'TaskMaster',
       debugShowCheckedModeBanner: false,
+
       themeMode: ThemeMode.system,
+
       theme: ThemeData(
         useMaterial3: true,
         brightness: Brightness.light,
       ),
+
       darkTheme: ThemeData(
         useMaterial3: true,
         brightness: Brightness.dark,
       ),
+
       home: const HomeScreen(),
     );
   }

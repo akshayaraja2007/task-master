@@ -1,37 +1,34 @@
-name: Build Flutter APK
+name: Build APK
 
 on:
   push:
-    branches: [ "main" ]
-  workflow_dispatch:
+    branches: [ main ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
+    defaults:
+      run:
+        working-directory: taskmaster
+
     steps:
-      - name: Checkout code
+      - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Set up Flutter
+      - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.38.7'
           channel: stable
 
       - name: Install dependencies
-        run: |
-          cd taskmaster
-          flutter pub get
+        run: flutter pub get
 
       - name: Build APK
-        run: |
-          cd taskmaster
-          flutter build apk --release
+        run: flutter build apk --release
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: taskmaster-apk
           path: taskmaster/build/app/outputs/flutter-apk/app-release.apk
-

@@ -1,7 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+
+import 'task_model.dart';
+import '../../services/notification_service.dart';
 
 class AddTaskScreen extends StatefulWidget {
-  const AddTaskScreen({super.key});
+  final Task? editTask;
+
+  const AddTaskScreen({super.key, this.editTask});
 
   @override
   State<AddTaskScreen> createState() => _AddTaskScreenState();
@@ -13,6 +19,21 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
   DateTime _selectedDateTime = DateTime.now();
   bool _remind = true;
 
+  bool get _isEditing => widget.editTask != null;
+
+  @override
+  void initState() {
+    super.initState();
+
+    /// preload when editing
+    if (_isEditing) {
+      final task = widget.editTask!;
+      _controller.text = task.title;
+      _selectedDateTime = task.dateTime;
+      _remind = task.remind;
+    }
+  }
+
   Future<void> _pickDateTime() async {
     final date = await showDatePicker(
       context: context,
@@ -21,14 +42,14 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
       lastDate: DateTime(2100),
     );
 
-    if (date == null) return;
+    if (date == null || !mounted) return;
 
     final time = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.fromDateTime(_selectedDateTime),
     );
 
-    if (time == null) return;
+    if (time == null || !mounted) return;
 
     setState(() {
       _selectedDateTime = DateTime(
@@ -41,11 +62,42 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
     });
   }
 
-  void _saveTask() {
-    if (_controller.text.trim().isEmpty) return;
+  Future<void> _saveTask() async {
+    final title = _controller.text.trim();
+    if (title.isEmpty) return;
 
+    final box = Hive.box<Task>('tasks');
+
+    /// EDIT MODE
+    if (_isEditing) {
+      final task = widget.editTask!;
+
+      /// cancel old notification
+      await NotificationService.cancel(task.id.hashCode);
+
+      task.title = title;
+      task.dateTime = _selectedDateTime;
+      task.remind = _remind;
+
+      await task.save();
+
+      /// reschedule
+      if (_remind) {
+        await NotificationService.schedule(
+          task.id.hashCode,
+          task.title,
+          _selectedDateTime,
+        );
+      }
+
+      if (!mounted) return;
+      Navigator.pop(context, true);
+      return;
+    }
+
+    /// ADD MODE
     Navigator.pop(context, {
-      'title': _controller.text.trim(),
+      'title': title,
       'time': _selectedDateTime,
       'remind': _remind,
     });
@@ -55,7 +107,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Add Task"),
+        title: Text(_isEditing ? "Edit Task" : "Add Task"),
         centerTitle: true,
       ),
       body: Padding(
@@ -94,9 +146,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
             SwitchListTile(
               title: const Text("Enable reminder"),
               value: _remind,
-              onChanged: (v) {
-                setState(() => _remind = v);
-              },
+              onChanged: (v) => setState(() => _remind = v),
             ),
 
             const Spacer(),
@@ -105,7 +155,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
               width: double.infinity,
               child: ElevatedButton.icon(
                 icon: const Icon(Icons.save),
-                label: const Text("Save Task"),
+                label: Text(_isEditing ? "Update Task" : "Save Task"),
                 onPressed: _saveTask,
               ),
             ),
