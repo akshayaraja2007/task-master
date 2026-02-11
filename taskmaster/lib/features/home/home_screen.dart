@@ -4,6 +4,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 
 import '../tasks/task_model.dart';
 import '../tasks/add_task_screen.dart';
+import '../tasks/edit_task_screen.dart';
 import '../../services/notification_service.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -21,17 +22,20 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Box<Task> get box => Hive.box<Task>('tasks');
 
-  /// SORTED tasks
+  // ===============================
+  // SORTED TASKS
+  // ===============================
   List<Task> _tasksByStatus(TaskStatus status) {
-    final list = box.values
+    final tasks = box.values
         .where((t) => t.status == status)
         .toList()
       ..sort((a, b) => a.dateTime.compareTo(b.dateTime));
-
-    return list;
+    return tasks;
   }
 
-  /// ADD
+  // ===============================
+  // ADD TASK
+  // ===============================
   void _addTask(String title, DateTime time, bool remind) async {
     final task = Task(
       id: Random().nextInt(999999).toString(),
@@ -53,52 +57,55 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {});
   }
 
-  /// MOVE FORWARD
-  void _moveForward(Task task) {
-    if (task.status == TaskStatus.todo) {
-      task.status = TaskStatus.doing;
-    } else if (task.status == TaskStatus.doing) {
-      task.status = TaskStatus.done;
-    }
-    task.save();
+  // ===============================
+  // SAVE / UPDATE TASK
+  // ===============================
+  void _saveTask(Task task) async {
+    await task.save();
     setState(() {});
   }
 
-  /// MOVE BACKWARD (only middle page)
-  void _moveBackward(Task task) {
-    if (task.status == TaskStatus.doing) {
-      task.status = TaskStatus.todo;
-      task.save();
-      setState(() {});
+  // ===============================
+  // MOVE TASK
+  // ===============================
+  void _move(Task task, bool forward) {
+    if (forward) {
+      if (task.status == TaskStatus.todo) {
+        task.status = TaskStatus.doing;
+      } else if (task.status == TaskStatus.doing) {
+        task.status = TaskStatus.done;
+      }
+    } else {
+      if (task.status == TaskStatus.doing) {
+        task.status = TaskStatus.todo;
+      } else if (task.status == TaskStatus.done) {
+        task.status = TaskStatus.doing;
+      }
     }
+
+    _saveTask(task);
   }
 
-  /// DELETE (only todo + done)
-  void _deleteTask(Task task) {
+  // ===============================
+  // DELETE TASK
+  // ===============================
+  void _delete(Task task) {
     NotificationService.cancel(task.id.hashCode);
     task.delete();
     setState(() {});
   }
 
-  /// EDIT
-  void _editTask(Task task) async {
-    final result = await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => AddTaskScreen(editTask: task),
-      ),
-    );
-
-    if (result != null) setState(() {});
-  }
-
+  // ===============================
+  // UI
+  // ===============================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("TaskMaster - ${_titles[_currentIndex]}"),
+        title: Text("TaskMaster — ${_titles[_currentIndex]}"),
         centerTitle: true,
       ),
+
       body: PageView(
         controller: _pageController,
         onPageChanged: (i) => setState(() => _currentIndex = i),
@@ -108,6 +115,7 @@ class _HomeScreenState extends State<HomeScreen> {
           _buildPage(TaskStatus.done),
         ],
       ),
+
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: (i) {
@@ -120,6 +128,7 @@ class _HomeScreenState extends State<HomeScreen> {
           BottomNavigationBarItem(icon: Icon(Icons.check), label: "Done"),
         ],
       ),
+
       floatingActionButton: FloatingActionButton(
         child: const Icon(Icons.add),
         onPressed: () async {
@@ -136,6 +145,9 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // ===============================
+  // PAGE BUILDER
+  // ===============================
   Widget _buildPage(TaskStatus status) {
     final tasks = _tasksByStatus(status);
 
@@ -146,46 +158,58 @@ class _HomeScreenState extends State<HomeScreen> {
     return ListView.builder(
       padding: const EdgeInsets.all(12),
       itemCount: tasks.length,
-      itemBuilder: (context, index) {
+      itemBuilder: (_, index) {
         final task = tasks[index];
 
         return Dismissible(
           key: ValueKey(task.id),
 
-          /// swipe rules
+          background: _swipeBackground(Icons.arrow_forward, Colors.green),
+          secondaryBackground:
+              _swipeBackground(Icons.arrow_back, Colors.orange),
+
           confirmDismiss: (direction) async {
-            if (status == TaskStatus.todo &&
-                direction == DismissDirection.endToStart) {
-              _deleteTask(task);
-              return true;
-            }
+            switch (status) {
 
-            if (status == TaskStatus.done &&
-                direction == DismissDirection.endToStart) {
-              _deleteTask(task);
-              return true;
-            }
+              // TODO PAGE
+              case TaskStatus.todo:
+                if (direction == DismissDirection.startToEnd) {
+                  _move(task, true);
+                  return false;
+                }
+                if (direction == DismissDirection.endToStart) {
+                  _delete(task);
+                  return true;
+                }
+                break;
 
-            if (status == TaskStatus.doing) {
-              if (direction == DismissDirection.startToEnd) {
-                _moveForward(task);
-              } else {
-                _moveBackward(task);
-              }
-              return true;
-            }
+              // DOING PAGE
+              case TaskStatus.doing:
+                if (direction == DismissDirection.startToEnd) {
+                  _move(task, true);
+                  return false;
+                }
+                if (direction == DismissDirection.endToStart) {
+                  _move(task, false);
+                  return false;
+                }
+                break;
 
-            if (direction == DismissDirection.startToEnd) {
-              _moveForward(task);
-              return true;
+              // DONE PAGE
+              case TaskStatus.done:
+                if (direction == DismissDirection.endToStart) {
+                  _move(task, false);
+                  return false;
+                }
+                if (direction == DismissDirection.startToEnd) {
+                  _delete(task);
+                  return true;
+                }
+                break;
             }
 
             return false;
           },
-
-          background: _swipeBg(Icons.arrow_forward, Colors.green, true),
-          secondaryBackground:
-              _swipeBg(Icons.delete, Colors.red, false),
 
           child: Card(
             elevation: 4,
@@ -198,11 +222,13 @@ class _HomeScreenState extends State<HomeScreen> {
                 task.title,
                 style: const TextStyle(fontWeight: FontWeight.bold),
               ),
+
               subtitle: Text(
                 "${task.dateTime.day}/${task.dateTime.month}/${task.dateTime.year} "
                 "${task.dateTime.hour.toString().padLeft(2, '0')}:"
                 "${task.dateTime.minute.toString().padLeft(2, '0')}",
               ),
+
               leading: CircleAvatar(
                 backgroundColor: status == TaskStatus.todo
                     ? Colors.orange
@@ -211,9 +237,20 @@ class _HomeScreenState extends State<HomeScreen> {
                         : Colors.green,
                 child: const Icon(Icons.task, color: Colors.white),
               ),
+
+              // ✅ EDIT BUTTON
               trailing: IconButton(
                 icon: const Icon(Icons.edit),
-                onPressed: () => _editTask(task),
+                onPressed: () async {
+                  final updated = await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => EditTaskScreen(task: task),
+                    ),
+                  );
+
+                  if (updated == true) setState(() {});
+                },
               ),
             ),
           ),
@@ -222,15 +259,17 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _swipeBg(IconData icon, Color color, bool left) {
+  // ===============================
+  // SWIPE UI
+  // ===============================
+  Widget _swipeBackground(IconData icon, Color color) {
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 8),
       decoration: BoxDecoration(
         color: color,
         borderRadius: BorderRadius.circular(16),
       ),
-      alignment: left ? Alignment.centerLeft : Alignment.centerRight,
-      padding: EdgeInsets.only(left: left ? 20 : 0, right: left ? 0 : 20),
+      alignment: Alignment.center,
       child: Icon(icon, color: Colors.white),
     );
   }
